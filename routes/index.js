@@ -4,27 +4,55 @@ var fs = require("fs");
 const fileUpload = require("express-fileupload");
 const readXlsxFile = require("read-excel-file/node");
 const fileExtension = require("file-extension");
+var json2xls = require("json2xls");
 
 router.use(fileUpload());
 /* GET home page. */
 router.get("/", function(req, res, next) {
 	res.render("index", { title: "Express" });
 });
+const output = [
+	{
+		studentID: 45663,
+		firstName: "สุรศักดิ์",
+		lastName: "ชาติดำรงค์",
+		birthDate: "2001-12-06T12:00:00.000Z",
+		educationType: "มัธยม",
+		educationLevel: 6,
+		educationRoom: 4
+	},
+	{
+		studentID: 306,
+		firstName: "เพชรน้ำหนึ่ง",
+		lastName: "บุญประเสริฐ",
+		birthDate: "2008-02-22T12:00:00.000Z",
+		educationType: "ประถม",
+		educationLevel: 4,
+		educationRoom: 10
+	},
+	{
+		studentID: 11235,
+		firstName: "เกียรติขจร",
+		lastName: "เหล่าวินัย",
+		birthDate: "2002-03-27T12:00:00.000Z",
+		educationType: "ปวช",
+		educationLevel: 2,
+		educationRoom: "-"
+	}
+];
 
 router.get("/download", function(req, res, next) {
 	const file = __dirname + "/../somefile.txt";
+	var xls = json2xls(output);
+	const exportName = `${new Date().getTime()}-download.xlsx`;
+	const exportPath = `${__dirname}/../seed_files/${exportName}`;
+	console.log("exportPath:", exportPath);
+
+	fs.writeFileSync(exportPath, xls, "binary");
 	res.download(file);
+	fs.unlinkSync(exportPath);
 });
 
-const mapExcelHeaders = {
-	รหัสนักเรียน: "studentID",
-	ชื่อจริง: "firstName",
-	นามสกุล: "lastName",
-	วันเกิด: "birthDate",
-	รูปแบบการศึกษา: "educationType",
-	ระดับการศึกษา: "educationLevel",
-	ห้อง: "educationRoom"
-};
 const schema = {
 	รหัสนักเรียน: {
 		prop: "studentID",
@@ -55,74 +83,28 @@ const schema = {
 		type: String
 	}
 };
-function mapArrayToJsonByHeader(array, headers) {
-	return new Promise((resolve, reject) => {
-		let json = {};
-		array.forEach((ele, i) => {
-			const header = headers[i];
-			const value = array[i];
-			json[header] = value;
-		});
-		console.log("json", json);
-		resolve(json);
-	});
-}
-async function mapExcelDataToArrayJson(excelData) {
-	try {
-		let headers = {};
-		/* Preparing headers to map */
-		const excelHeaders = excelData.shift();
-
-		for (let i = 0, { length } = excelHeaders; i < length; i++) {
-			const headerValue = mapExcelHeaders[excelHeaders[i]];
-			if (!headerValue) throw { message: "หัวตาราง excel ผิดรูปแบบ" };
-			headers[i] = headerValue;
-		}
-
-		console.log("excelData", excelData);
-		// console.log("excelData[0]", excelData[0]);
-		// console.log("excelData[1]", excelData[1]);
-		// console.log("excelData[2]", excelData[2]);
-
-		/* Iterate and map each array to json */
-		// for (let i = 0, { length } = excelData; i < length; i++) {
-		// 	console.log("i", i);
-		// 	const row = excelData[i];
-		// 	// console.log("row", row);
-		// 	excelData = await mapArrayToJsonByHeader(row, headers);
-		// }
-
-		return excelData;
-	} catch (error) {
-		throw error;
-	}
-}
 router.post("/upload", async function(req, res) {
 	try {
 		const file = req.files.excel;
-		const savePath = __dirname + "/../views/" + file.name;
-		await file.mv(savePath);
-
 		/* check extension */
-		const extension = fileExtension(savePath);
+		const extension = fileExtension(file.name);
 		if (extension !== "xlsx") {
 			res.status(400).send("not xlsx but", extension);
 			return;
 		}
-		// const { rows, errors } = await readXlsxFile(savePath, { schema, sheet: 2 });
+
+		const saveName = `${new Date().getTime()}-${file.name}`;
+		const savePath = `${__dirname}/../seed_files/${saveName}`;
+		console.log("SavePath:", savePath);
+		await file.mv(savePath);
+
 		const { rows, errors } = await readXlsxFile(savePath, { schema, sheet: 2 });
 		fs.unlinkSync(savePath);
-
-		console.log("rows::", rows);
-		console.log("errors::", errors);
 
 		if (errors.length !== 0) {
 			res.status(400).send(errors);
 			return;
 		}
-		/* */
-		// console.log(await mapExcelDataToArrayJson(rows));
-		// console.log("rows", rows);
 
 		res.status(200).send(rows);
 	} catch (error) {
