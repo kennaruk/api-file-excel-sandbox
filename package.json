@@ -11,6 +11,7 @@
     "debug": "~2.6.3",
     "express": "~4.15.2",
     "express-fileupload": "^1.0.0",
+    "file-extension": "^4.0.5",
     "jade": "~1.11.0",
     "morgan": "~1.8.1",
     "read-excel-file": "^2.0.5",
